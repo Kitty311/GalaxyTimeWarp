@@ -1,5 +1,6 @@
 package com.zero.hm.effect.timewarpscan;
 
+import static android.content.ContentValues.TAG;
 import static com.zero.hm.effect.timewarpscan.ScanActivity.speed.MODE_FAST;
 import static com.zero.hm.effect.timewarpscan.ScanActivity.speed.MODE_NORMAL;
 import static com.zero.hm.effect.timewarpscan.ScanActivity.speed.MODE_SLOW;
@@ -84,10 +85,11 @@ public class ScanActivity extends AppCompatActivity
         binding = ActivityScanBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        recorder = new MediaRecorder();
+        recorder = new MediaRecorder();// Instantiate our media recording object
         initRecorder();
 
-        holder = binding.cameraView.getHolder();
+        SurfaceView cameraView = binding.cameraView;
+        holder = cameraView.getHolder();
         holder.addCallback(this);
         holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
@@ -110,18 +112,54 @@ public class ScanActivity extends AppCompatActivity
     }
 
     private void initRecorder() {
-        recorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
-        recorder.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
 
-        CamcorderProfile cpLow = CamcorderProfile
-                .get(CamcorderProfile.QUALITY_LOW);
-        recorder.setProfile(cpLow);
+        Camera camera = Camera.open();
+        Camera.Parameters param = camera.getParameters();
+        param.set( "cam_mode", 1 );
+        param.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+        camera.setParameters( param );
+
+        recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);// 视频输出格式
+
+        // Step 3: Set video output format and encode
+        recorder.setAudioEncodingBitRate(44100);
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+
+        CamcorderProfile mProfile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
+        recorder.setVideoSize(640, 480);// 设置分辨率
+        if (mProfile.videoBitRate > 2 * 1000 * 1000) {
+            recorder.setVideoEncodingBitRate(1000 * 1000);   // 320 * 240
+        } else {
+            recorder.setVideoEncodingBitRate(mProfile.videoBitRate);
+        }
+        recorder.setVideoFrameRate(30);
+        recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+
+        // Step 4: Set output file
         recorder.setOutputFile(GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".mp4");
-        recorder.setMaxDuration(50000); // 50 seconds
-        recorder.setMaxFileSize(5000000); // Approximately 5 megabytes
+
+        // Step 5: Set the preview output
+        recorder.setPreviewDisplay(binding.cameraView.getHolder().getSurface());
+
+
+    }
+
+    private void prepareRecorder() {
+        recorder.setPreviewDisplay(holder.getSurface());
+
+        try {
+            recorder.prepare();
+        } catch (IllegalStateException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void surfaceCreated(SurfaceHolder holder) {
+        initRecorder();
+        Log.v(TAG,"surfaceCreated");
         prepareRecorder();
     }
 
@@ -130,22 +168,13 @@ public class ScanActivity extends AppCompatActivity
     }
 
     public void surfaceDestroyed(SurfaceHolder holder) {
-        recorder.stop();
-        recorder.release();
-    }
-
-    private void prepareRecorder() {
-        recorder.setPreviewDisplay(holder.getSurface());
-
         try {
-            recorder.prepare();
-        } catch (IllegalStateException e) {
+            recorder.stop();
+        } catch (Exception e) {
             e.printStackTrace();
-            finish();
-        } catch (IOException e) {
-            e.printStackTrace();
-            finish();
         }
+        recorder.release();
+        finish();
     }
 
     private Handler handler = new Handler();
