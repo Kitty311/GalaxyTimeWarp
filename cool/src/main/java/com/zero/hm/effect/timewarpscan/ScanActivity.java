@@ -1,44 +1,22 @@
 package com.zero.hm.effect.timewarpscan;
 
-import static android.content.ContentValues.TAG;
-import static com.zero.hm.effect.timewarpscan.ScanActivity.speed.MODE_FAST;
-import static com.zero.hm.effect.timewarpscan.ScanActivity.speed.MODE_NORMAL;
-import static com.zero.hm.effect.timewarpscan.ScanActivity.speed.MODE_SLOW;
-
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.ObjectAnimator;
-import android.app.AlertDialog;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
-import android.media.CamcorderProfile;
-import android.media.MediaRecorder;
 import android.media.projection.MediaProjectionManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.PixelCopy;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
@@ -52,16 +30,13 @@ import com.zero.hm.effect.timewarpscan.databinding.ActivityScanBinding;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Date;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import pub.devrel.easypermissions.EasyPermissions;
 
 public class ScanActivity extends AppCompatActivity
         implements Listener,
-        EasyPermissions.PermissionCallbacks, SurfaceHolder.Callback {
+        EasyPermissions.PermissionCallbacks {
 
     private ActivityScanBinding binding;
 
@@ -76,22 +51,11 @@ public class ScanActivity extends AppCompatActivity
 
     private int counterTime = 3;
 
-    MediaRecorder recorder;
-    SurfaceHolder holder;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityScanBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        recorder = new MediaRecorder();// Instantiate our media recording object
-        initRecorder();
-
-        SurfaceView cameraView = binding.cameraView;
-        holder = cameraView.getHolder();
-        holder.addCallback(this);
-        holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
         // cameraManager to interact with camera devices
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
@@ -109,72 +73,6 @@ public class ScanActivity extends AppCompatActivity
 
         binding.cameraView.setListener(this);
         clickListeners();
-    }
-
-    private void initRecorder() {
-
-        Camera camera = Camera.open();
-        Camera.Parameters param = camera.getParameters();
-        param.set( "cam_mode", 1 );
-        param.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
-        camera.setParameters( param );
-
-        recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-
-        recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);// 视频输出格式
-
-        // Step 3: Set video output format and encode
-        recorder.setAudioEncodingBitRate(44100);
-        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-
-        CamcorderProfile mProfile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
-        recorder.setVideoSize(640, 480);// 设置分辨率
-        if (mProfile.videoBitRate > 2 * 1000 * 1000) {
-            recorder.setVideoEncodingBitRate(1000 * 1000);   // 320 * 240
-        } else {
-            recorder.setVideoEncodingBitRate(mProfile.videoBitRate);
-        }
-        recorder.setVideoFrameRate(30);
-        recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-
-        // Step 4: Set output file
-        recorder.setOutputFile(GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".mp4");
-
-        // Step 5: Set the preview output
-        recorder.setPreviewDisplay(binding.cameraView.getHolder().getSurface());
-
-
-    }
-
-    private void prepareRecorder() {
-        recorder.setPreviewDisplay(holder.getSurface());
-
-        try {
-            recorder.prepare();
-        } catch (IllegalStateException | IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void surfaceCreated(SurfaceHolder holder) {
-        initRecorder();
-        Log.v(TAG,"surfaceCreated");
-        prepareRecorder();
-    }
-
-    public void surfaceChanged(SurfaceHolder holder, int format, int width,
-                               int height) {
-    }
-
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        try {
-            recorder.stop();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        recorder.release();
-        finish();
     }
 
     private Handler handler = new Handler();
@@ -203,17 +101,6 @@ public class ScanActivity extends AppCompatActivity
     @Override
     public void finish() {
         super.finish();
-        try {
-            // true sets the torch in OFF mode
-            cameraManager.setTorchMode(getCameraID, false);
-
-            // Inform the user about the flashlight
-            // status using Toast message
-        } catch (CameraAccessException e) {
-            // prints stack trace on standard error
-            // output error stream
-            e.printStackTrace();
-        }
     }
 
     private void setFlashState(boolean turnOn) {
@@ -257,6 +144,8 @@ public class ScanActivity extends AppCompatActivity
             }
         }
     }
+
+    private boolean isRecording = false;
 
     private void clickListeners() {
 
@@ -402,8 +291,6 @@ public class ScanActivity extends AppCompatActivity
 
     private void saveImage() {
         try {
-            recorder.stop();
-            recorder.release();
 
             Camera2SurfaceView camera2SurfaceView = findViewById(R.id.camera_view);
             final Bitmap bitmap = Bitmap.createBitmap(
@@ -506,12 +393,12 @@ public class ScanActivity extends AppCompatActivity
         startService(ScreenCaptureService.getStopIntent(this));
     }
 
-    private boolean isRecording = false;
+    public static final int MEDIA_TYPE_IMAGE = 1;
+    public static final int MEDIA_TYPE_VIDEO = 2;
 
     public void onScan(){
         if (isRecording) {
             //
-            recorder.start();
         }
         binding.counterText.setVisibility(View.GONE);
         binding.topbar.setVisibility(View.GONE);
@@ -543,6 +430,7 @@ public class ScanActivity extends AppCompatActivity
     @Override
     public void quitScan() {
         saveImage();
+
         binding.topbar.setVisibility(View.VISIBLE);
         binding.bottombar.setVisibility(View.VISIBLE);
     }
@@ -586,18 +474,6 @@ public class ScanActivity extends AppCompatActivity
         editor.apply();
     }
 
-    private boolean hasWritePermissions() {
-        return EasyPermissions.hasPermissions(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                || Build.VERSION.SDK_INT >= Build.VERSION_CODES.R;
-    }
-
-    private void requestExternalStoragePermission() {
-        EasyPermissions.requestPermissions(
-                this, "Please grant storage access to save file",
-                100, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-        );
-    }
-
     @Override
     public void onPermissionsGranted(int requestCode, @NonNull List<String> perms) {
 
@@ -629,9 +505,4 @@ public class ScanActivity extends AppCompatActivity
         super.onPointerCaptureChanged(hasCapture);
     }
 
-    enum speed {
-        MODE_NORMAL,
-        MODE_SLOW,
-        MODE_FAST;
-    }
 }

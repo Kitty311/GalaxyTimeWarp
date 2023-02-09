@@ -12,6 +12,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
+    <SurfaceView
+        android:id="@+id/surfaceView"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
     <View
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
