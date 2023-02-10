@@ -11,8 +11,4 @@ public class GalaxyConstants {
             (Environment.getExternalStorageDirectory().getAbsolutePath()
                     + "/" + APP_FOLDER + "/");
 
-    public static String GetExploreVideoSavedPath(Context context) {
-        return FILTER_IMAGE_SAVED_PATH + "/GalaxyExploreVideos/";
-    }
-
 }

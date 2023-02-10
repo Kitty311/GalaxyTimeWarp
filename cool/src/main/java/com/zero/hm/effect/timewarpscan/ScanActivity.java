@@ -1,19 +1,30 @@
 package com.zero.hm.effect.timewarpscan;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
+import android.media.MediaRecorder;
+import android.media.MediaScannerConnection;
+import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.SparseIntArray;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.WindowManager;
@@ -29,8 +40,13 @@ import com.zero.hm.effect.timewarpscan.databinding.ActivityScanBinding;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -38,6 +54,7 @@ public class ScanActivity extends AppCompatActivity
         implements Listener,
         EasyPermissions.PermissionCallbacks {
 
+    private static final int RECORD_REQUEST_CODE = 412;
     private ActivityScanBinding binding;
 
     private static final int FRONT_CAMERA = 1;
@@ -47,7 +64,7 @@ public class ScanActivity extends AppCompatActivity
     private static final int SPEED_NORMAL = 8;
     private static final int SPEED_FAST = 16;
 
-    private static final int REQUEST_CODE = 100;
+    private static final int CAPTURE_REQUEST_CODE = 311;
 
     private int counterTime = 3;
 
@@ -56,6 +73,10 @@ public class ScanActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         binding = ActivityScanBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(new Intent(this, RecordService.class));
+        }
 
         // cameraManager to interact with camera devices
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
@@ -73,7 +94,169 @@ public class ScanActivity extends AppCompatActivity
 
         binding.cameraView.setListener(this);
         clickListeners();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(new Intent(this, RecordService.class));
+        }
+
+
+        DisplayMetrics metrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+
+        mScreenDensity = metrics.densityDpi;
+        width = metrics.widthPixels;
+        height = metrics.heightPixels;
+
+
+
+        mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+
+
     }
+
+
+
+
+
+
+
+
+    /////////////////////////
+    int width, height;
+    private Timer timer = new Timer();
+    private TimerTask timerTask;
+
+
+    private static final String TAG = "MainActivity";
+    private String videofile= "";
+    private int mScreenDensity;
+    private MediaProjectionManager mProjectionManager;
+    private MediaProjection mMediaProjection;
+    private VirtualDisplay mVirtualDisplay;
+    private MediaProjectionCallback mMediaProjectionCallback;
+    private MediaRecorder mMediaRecorder;
+    private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
+    private void shareScreen() {
+        if (mMediaProjection == null) {
+            startActivityForResult(mProjectionManager.createScreenCaptureIntent(), RECORD_REQUEST_CODE);
+            return;
+        }
+
+
+        mVirtualDisplay = createVirtualDisplay();
+
+
+        mMediaRecorder.start();
+        isRecording = true;
+    }
+
+    private VirtualDisplay createVirtualDisplay() {
+
+        return mMediaProjection.createVirtualDisplay(getClass().getName(), width, height , mScreenDensity,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
+    }
+
+    private void initRecorder() {
+        mMediaRecorder = new MediaRecorder();
+        try {
+
+
+            File file = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+            if(!file.exists()) {
+                file.mkdirs();
+            }
+
+            Log.e("e","Before");
+            videofile= GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".mp4";
+            File file1 = new File(videofile);
+            Log.e("e","after");
+
+            FileWriter fileWriter = new FileWriter(file1);
+            fileWriter.append("");
+            fileWriter.flush();
+            fileWriter.close();
+            mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+            mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            Log.e("e","after");
+            mMediaRecorder.setVideoSize(width, height);
+            mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+            mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+            mMediaRecorder.setVideoEncodingBitRate(512 * 1000);
+            mMediaRecorder.setVideoFrameRate(30);
+            mMediaRecorder.setVideoEncodingBitRate(3000000);
+            int rotation = getWindowManager().getDefaultDisplay().getRotation();
+            int orientation = ORIENTATIONS.get(rotation + 90);
+            mMediaRecorder.setOrientationHint(orientation);
+            mMediaRecorder.setOutputFile(videofile);
+            mMediaRecorder.prepare();
+
+
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+    private void stopScreenSharing() {
+        if (mVirtualDisplay == null) {
+            return;
+        }
+        mMediaRecorder.stop();
+        mMediaRecorder.reset();
+        mVirtualDisplay.release();
+        destroyMediaProjection();
+        isRecording = false;
+
+        MediaScannerConnection.scanFile(this,new String[]{videofile.toString()},null,
+                new MediaScannerConnection.OnScanCompletedListener(){
+                    @Override
+                    public void onScanCompleted(String path, Uri uri) {
+                        Log.i("External","scanned"+path+":");
+                        Log.i("External","-> uri="+uri);
+
+                    }
+                });
+
+        /////////// show video
+
+    }
+
+
+
+    private void destroyMediaProjection() {
+        if (mMediaProjection != null) {
+            mMediaProjection.unregisterCallback(mMediaProjectionCallback);
+            mMediaProjection.stop();
+            mMediaProjection = null;
+        }
+
+
+        Log.i(TAG, "MediaProjection Stopped");
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ////////////////////////
 
     private Handler handler = new Handler();
 
@@ -291,7 +474,7 @@ public class ScanActivity extends AppCompatActivity
 
     private void saveImage() {
         try {
-
+            stopScreenSharing();
             Camera2SurfaceView camera2SurfaceView = findViewById(R.id.camera_view);
             final Bitmap bitmap = Bitmap.createBitmap(
                     camera2SurfaceView.getWidth(),
@@ -373,33 +556,95 @@ public class ScanActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopService(new Intent(this, RecordService.class));
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
-            startService(ScreenCaptureService.getStartIntent(this, resultCode, data, this));
+        if (resultCode == RESULT_OK) {
+            if (requestCode == CAPTURE_REQUEST_CODE) {
+                startService(ScreenCaptureService.getStartIntent(this, resultCode, data, this));
+            } else if (requestCode == RECORD_REQUEST_CODE) {
+////////////////////////
+                mMediaProjectionCallback = new MediaProjectionCallback();
+
+
+                mMediaProjection = mProjectionManager.getMediaProjection(resultCode, data);
+//                moveTaskToBack(true);
+
+
+                timerTask = new TimerTask() {
+                    @Override
+                    public void run() {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(ScanActivity.this, "Screen Recording is started", Toast.LENGTH_SHORT).show();
+                                timerTask = new TimerTask() {
+                                    @Override
+                                    public void run() {
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+
+                                                mMediaProjection.registerCallback(mMediaProjectionCallback, null);
+                                                mVirtualDisplay = mMediaProjection.createVirtualDisplay("MainActivity", width, height, mScreenDensity,
+                                                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
+
+                                                mMediaRecorder.start();
+
+                                                doScan();
+
+                                            }
+                                        });
+                                    }
+                                };
+                                timer.schedule(timerTask, (int)(100));
+                            }
+                        });
+                    }
+                };
+                timer.schedule(timerTask,(int)(100));
+
+
+            }
         }
     }
 
-    /****************************************** UI Widget Callbacks *******************************/
-    private void startProjection() {
-        MediaProjectionManager mProjectionManager =
-                (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        startActivityForResult(mProjectionManager.createScreenCaptureIntent(), REQUEST_CODE);
-//        startService(ScreenCaptureService.getStartIntent(this,
-//                RESULT_OK, mProjectionManager.createScreenCaptureIntent(), this));
+    private class MediaProjectionCallback extends MediaProjection.Callback {
+        @Override
+        public void onStop() {
+            try {
+                stopScreenSharing();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
+////////////////////
 
-    private void stopProjection() {
-        startService(ScreenCaptureService.getStopIntent(this));
+    @Override
+    public void quitScan() {
+        saveImage();
+
+        binding.topbar.setVisibility(View.VISIBLE);
+        binding.bottombar.setVisibility(View.VISIBLE);
     }
-
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
 
     public void onScan(){
         if (isRecording) {
             //
+            initRecorder();
+            shareScreen();
+        } else {
+            doScan();
         }
+    }
+
+    private void doScan() {
         binding.counterText.setVisibility(View.GONE);
         binding.topbar.setVisibility(View.GONE);
         binding.bottombar.setVisibility(View.GONE);
@@ -416,6 +661,10 @@ public class ScanActivity extends AppCompatActivity
         binding.cameraView.setScanVideo(isStart);
     }
 
+    private void stopProjection() {
+        startService(ScreenCaptureService.getStopIntent(this));
+    }
+
     @Override
     public void imageSavedSuccessfully(final String filePath) {
         runOnUiThread(new Runnable() {
@@ -425,14 +674,6 @@ public class ScanActivity extends AppCompatActivity
                 Toast.makeText(ScanActivity.this, "File saved successfully in " + filePath, Toast.LENGTH_LONG).show();
             }
         });
-    }
-
-    @Override
-    public void quitScan() {
-        saveImage();
-
-        binding.topbar.setVisibility(View.VISIBLE);
-        binding.bottombar.setVisibility(View.VISIBLE);
     }
 
     @Override

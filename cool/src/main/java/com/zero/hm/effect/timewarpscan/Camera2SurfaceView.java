@@ -14,6 +14,7 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.MediaRecorder;
 import android.opengl.GLES20;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -27,6 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.PermissionChecker;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -49,7 +51,7 @@ public class Camera2SurfaceView extends SurfaceView {
     private int screenWidth = -1, screenHeight, previewWidth,previewHeight;
     private Rect rect = new Rect();
 
-    private Handler cameraHandler;
+    public Handler cameraHandler;
     private HandlerThread cameraThread;
 
     private boolean isScan = false;
@@ -115,70 +117,73 @@ public class Camera2SurfaceView extends SurfaceView {
         activeCamera = getActiveCamera(context);
 
         initCamera2();
-        getHolder().addCallback(new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(SurfaceHolder surfaceHolder) {
-                cameraHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        mEglUtils.initEGL(getHolder().getSurface());
-                        GLES20.glEnable(GLES20.GL_BLEND);
-                        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-                        mRenderer.initShader();
-                        videoRenderer.initShader();
-                        scanRenderer.initShader();
-                        lineRenderer.initShader();
-                        videoRenderer.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-                            @Override
-                            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                                cameraHandler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        if(mCameraCaptureSession == null){
-                                            return;
-                                        }
-                                        videoRenderer.drawFrame();
-                                        int videoTexture = videoRenderer.getTexture();
-                                        if(isScan){
-                                            if(!isf){
-                                                startTime = System.currentTimeMillis();
-                                                scanHeight = pixelHeight*speed;
-                                                scanHeightPixel = (float) (isHorizontal ? 0 : correctionDistance);
-                                            }else{
-                                                isNewScan = false;
-                                                scanHeight += (pixelHeight*speed);
+        getHolder().addCallback(sfc);
+    }
+
+    public SurfaceHolder.Callback sfc = new SurfaceHolder.Callback() {
+        @Override
+        public void surfaceCreated(SurfaceHolder surfaceHolder) {
+            cameraHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    mEglUtils.initEGL(getHolder().getSurface());
+                    GLES20.glEnable(GLES20.GL_BLEND);
+                    GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+                    mRenderer.initShader();
+                    videoRenderer.initShader();
+                    scanRenderer.initShader();
+                    lineRenderer.initShader();
+                    videoRenderer.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+                        @Override
+                        public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+                            cameraHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if(mCameraCaptureSession == null){
+                                        return;
+                                    }
+                                    videoRenderer.drawFrame();
+                                    int videoTexture = videoRenderer.getTexture();
+                                    if(isScan){
+                                        if(!isf){
+                                            startTime = System.currentTimeMillis();
+                                            scanHeight = pixelHeight*speed;
+                                            scanHeightPixel = (float) (isHorizontal ? 0 : correctionDistance);
+                                        }else{
+                                            isNewScan = false;
+                                            scanHeight += (pixelHeight*speed);
 //                                                scanHeightPixel += speed;
-                                                 scanHeightPixel = (isHorizontal ? 0 : correctionDistance)
-                                                         + scanHeight * (isHorizontal ? scanContainerWidth : scanContainerHeight);
+                                            scanHeightPixel = (isHorizontal ? 0 : correctionDistance)
+                                                    + scanHeight * (isHorizontal ? scanContainerWidth : scanContainerHeight);
 
-                                                ((AppCompatActivity)context).runOnUiThread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        listener.moveScanLine((int) scanHeightPixel, isHorizontal);
-                                                    }
-                                                });
+                                            ((AppCompatActivity)getContext()).runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    listener.moveScanLine((int) scanHeightPixel, isHorizontal);
+                                                }
+                                            });
 
-                                            }
+                                        }
 
 //                                            if(scanHeight < 2.0){
-                                                float fh = scanHeight;
-                                                if(scanHeight >= 1.0){
+                                        float fh = scanHeight;
+                                        if(scanHeight >= 1.0){
 //                                                    scanHeight = 3.0f;
 //                                                    fh = 1.0f;
-                                                    cameraThread.quit();
-                                                    ((AppCompatActivity)context).runOnUiThread(new Runnable() {
-                                                        @Override
-                                                        public void run() {
-                                                            listener.quitScan();
-                                                        }
-                                                    });
+                                            cameraThread.quit();
+                                            ((AppCompatActivity)getContext()).runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    listener.quitScan();
                                                 }
-                                                lineRenderer.setVertices(
-                                                        -10f, 10f, 0f,
-                                                        10f, 10f, 0f);
-                                                lineRenderer.setColor(.8f, .8f, 0f, 1.0f);
-                                                lineRenderer.drawFrame();
-                                                scanRenderer.drawFrame(videoRenderer.getTexture(),fh, context, isNewScan);
+                                            });
+                                        }
+                                        lineRenderer.setVertices(
+                                                -10f, 10f, 0f,
+                                                10f, 10f, 0f);
+                                        lineRenderer.setColor(.8f, .8f, 0f, 1.0f);
+                                        lineRenderer.drawFrame();
+                                        scanRenderer.drawFrame(videoRenderer.getTexture(),fh, getContext(), isNewScan);
 //                                            }
 //                                            else if (scanHeight < 4.0f){
 //                                                scanHeight = 5.0f;
@@ -186,83 +191,82 @@ public class Camera2SurfaceView extends SurfaceView {
 //                                                Log.d("TAG", "run: " + (System.currentTimeMillis() - startTime));
 //                                                Log.d("TAG", "run: scan done");
 //                                            }
-                                            videoTexture = scanRenderer.getTexture();
-                                        }
-                                        isf = isScan;
-                                        GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
-                                        GLES20.glViewport(rect.left,rect.top,rect.width(),rect.height());
-                                        mRenderer.drawFrame(videoTexture);
-                                        mEglUtils.swap();
-
+                                        videoTexture = scanRenderer.getTexture();
                                     }
-                                });
-                            }
-                        });
+                                    isf = isScan;
+                                    GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
+                                    GLES20.glViewport(rect.left,rect.top,rect.width(),rect.height());
+                                    mRenderer.drawFrame(videoTexture);
+                                    mEglUtils.swap();
 
-                        if(screenWidth != -1){
-                            openCamera2();
+                                }
+                            });
                         }
-                    }
-                });
-            }
+                    });
 
-            @Override
-            public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int w, int h) {
-                final int sw = screenWidth;
-                screenWidth = w;
-                screenHeight = h;
-                cameraHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        Size mPreviewSize =  getPreferredPreviewSize(mSizes, screenWidth, screenHeight);
-                        Log.d("TAG", "run: " + mPreviewSize);
-                        previewWidth = mPreviewSize.getHeight();
-                        previewHeight = mPreviewSize.getWidth();
-                        pixelHeight = 1.0f/previewHeight;
-                        int left, top, viewWidth, viewHeight;
-                        float sh = screenWidth * 1.0f / screenHeight;
-                        float vh = previewWidth * 1.0f / previewHeight;
-                        if (sh < vh) {
-                            left = 0;
-                            viewWidth = screenWidth;
-                            viewHeight = (int) (previewHeight * 1.0f / previewWidth * viewWidth);
-                            top = (screenHeight - viewHeight) / 2;
-                            correctionDistance = top;
-                        }
-                        else {
-                            top = 0;
-                            viewHeight = screenHeight;
-                            viewWidth = (int) (previewWidth * 1.0f / previewHeight * viewHeight);
-                            left = (screenWidth - viewWidth) / 2;
-                            correctionDistance = left;
-                        }
-                        rect.left = left;
-                        rect.top = top;
-                        rect.right = left + viewWidth;
-                        rect.bottom = top + viewHeight;
-                        scanContainerHeight = viewHeight;
-                        scanContainerWidth = viewWidth;
-                        videoRenderer.setSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
-                        lineRenderer.setSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
-                        scanRenderer.setSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
-                        if(sw == -1){
-                            openCamera2();
-                        }
+                    if(screenWidth != -1){
+                        openCamera2();
                     }
-                });
-            }
+                }
+            });
+        }
 
-            @Override
-            public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-                cameraHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        destroyAll();
+        @Override
+        public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int w, int h) {
+            final int sw = screenWidth;
+            screenWidth = w;
+            screenHeight = h;
+            cameraHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Size mPreviewSize =  getPreferredPreviewSize(mSizes, screenWidth, screenHeight);
+                    Log.d("TAG", "run: " + mPreviewSize);
+                    previewWidth = mPreviewSize.getHeight();
+                    previewHeight = mPreviewSize.getWidth();
+                    pixelHeight = 1.0f/previewHeight;
+                    int left, top, viewWidth, viewHeight;
+                    float sh = screenWidth * 1.0f / screenHeight;
+                    float vh = previewWidth * 1.0f / previewHeight;
+                    if (sh < vh) {
+                        left = 0;
+                        viewWidth = screenWidth;
+                        viewHeight = (int) (previewHeight * 1.0f / previewWidth * viewWidth);
+                        top = (screenHeight - viewHeight) / 2;
+                        correctionDistance = top;
                     }
-                });
-            }
-        });
-    }
+                    else {
+                        top = 0;
+                        viewHeight = screenHeight;
+                        viewWidth = (int) (previewWidth * 1.0f / previewHeight * viewHeight);
+                        left = (screenWidth - viewWidth) / 2;
+                        correctionDistance = left;
+                    }
+                    rect.left = left;
+                    rect.top = top;
+                    rect.right = left + viewWidth;
+                    rect.bottom = top + viewHeight;
+                    scanContainerHeight = viewHeight;
+                    scanContainerWidth = viewWidth;
+                    videoRenderer.setSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
+                    lineRenderer.setSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
+                    scanRenderer.setSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
+                    if(sw == -1){
+                        openCamera2();
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
+            cameraHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    destroyAll();
+                }
+            });
+        }
+    };
 
     public void setBrightness(int value) {
         int brightness = value;

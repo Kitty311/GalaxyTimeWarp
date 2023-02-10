@@ -23,11 +23,14 @@
         </activity>
         <activity android:name="com.zero.hm.effect.timewarpscan.ScanActivity"
             android:screenOrientation="portrait"/>
-        <activity android:name=".RecordActivity" />
 
         <service
             android:name=".ScreenCaptureService"
             android:foregroundServiceType="mediaProjection"/>
+        <service android:name=".RecordService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
     </application>
 
 </manifest>
