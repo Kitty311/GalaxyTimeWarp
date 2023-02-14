@@ -637,8 +637,8 @@ public class ScanActivity extends AppCompatActivity
     public void onScan(){
         if (isRecording) {
             //
-            initRecorder();
-            shareScreen();
+//            initRecorder();
+//            shareScreen();
         } else {
             doScan();
         }

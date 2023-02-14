@@ -2,27 +2,35 @@ package com.zero.hm.effect.timewarpscan;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.opengl.GLES20;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Size;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -118,7 +126,9 @@ public class Camera2SurfaceView extends SurfaceView {
 
         initCamera2();
         getHolder().addCallback(sfc);
+
     }
+
 
     public SurfaceHolder.Callback sfc = new SurfaceHolder.Callback() {
         @Override
@@ -133,6 +143,7 @@ public class Camera2SurfaceView extends SurfaceView {
                     videoRenderer.initShader();
                     scanRenderer.initShader();
                     lineRenderer.initShader();
+
                     videoRenderer.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
                         @Override
                         public void onFrameAvailable(SurfaceTexture surfaceTexture) {
@@ -146,13 +157,13 @@ public class Camera2SurfaceView extends SurfaceView {
                                     int videoTexture = videoRenderer.getTexture();
                                     if(isScan){
                                         if(!isf){
+
                                             startTime = System.currentTimeMillis();
                                             scanHeight = pixelHeight*speed;
                                             scanHeightPixel = (float) (isHorizontal ? 0 : correctionDistance);
                                         }else{
                                             isNewScan = false;
                                             scanHeight += (pixelHeight*speed);
-//                                                scanHeightPixel += speed;
                                             scanHeightPixel = (isHorizontal ? 0 : correctionDistance)
                                                     + scanHeight * (isHorizontal ? scanContainerWidth : scanContainerHeight);
 
@@ -165,11 +176,8 @@ public class Camera2SurfaceView extends SurfaceView {
 
                                         }
 
-//                                            if(scanHeight < 2.0){
                                         float fh = scanHeight;
                                         if(scanHeight >= 1.0){
-//                                                    scanHeight = 3.0f;
-//                                                    fh = 1.0f;
                                             cameraThread.quit();
                                             ((AppCompatActivity)getContext()).runOnUiThread(new Runnable() {
                                                 @Override
@@ -177,6 +185,7 @@ public class Camera2SurfaceView extends SurfaceView {
                                                     listener.quitScan();
                                                 }
                                             });
+
                                         }
                                         lineRenderer.setVertices(
                                                 -10f, 10f, 0f,
@@ -184,13 +193,6 @@ public class Camera2SurfaceView extends SurfaceView {
                                         lineRenderer.setColor(.8f, .8f, 0f, 1.0f);
                                         lineRenderer.drawFrame();
                                         scanRenderer.drawFrame(videoRenderer.getTexture(),fh, getContext(), isNewScan);
-//                                            }
-//                                            else if (scanHeight < 4.0f){
-//                                                scanHeight = 5.0f;
-////                                                recordAnimationDuration(context);
-//                                                Log.d("TAG", "run: " + (System.currentTimeMillis() - startTime));
-//                                                Log.d("TAG", "run: scan done");
-//                                            }
                                         videoTexture = scanRenderer.getTexture();
                                     }
                                     isf = isScan;
@@ -206,7 +208,9 @@ public class Camera2SurfaceView extends SurfaceView {
 
                     if(screenWidth != -1){
                         openCamera2();
+
                     }
+
                 }
             });
         }
@@ -219,7 +223,7 @@ public class Camera2SurfaceView extends SurfaceView {
             cameraHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    Size mPreviewSize =  getPreferredPreviewSize(mSizes, screenWidth, screenHeight);
+                    mPreviewSize =  getPreferredPreviewSize(mSizes, screenWidth, screenHeight);
                     Log.d("TAG", "run: " + mPreviewSize);
                     previewWidth = mPreviewSize.getHeight();
                     previewHeight = mPreviewSize.getWidth();
@@ -315,11 +319,57 @@ public class Camera2SurfaceView extends SurfaceView {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+
     }
+
+    private Size mPreviewSize;
+
+
+
+
+
+
+
+
+
+
+    private MediaRecorder galaxyMediaRecorder;
+    private void galaxySetupMediaRecorder() {
+        galaxyMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        galaxyMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        galaxyMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        galaxyMediaRecorder.setOutputFile(GalaxyConstants.FILTER_IMAGE_SAVED_PATH
+                + System.currentTimeMillis() + ".mp4");
+        galaxyMediaRecorder.setVideoEncodingBitRate(10000000);
+        galaxyMediaRecorder.setVideoFrameRate(30);
+        galaxyMediaRecorder.setVideoSize(previewWidth, previewHeight);;
+        galaxyMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        galaxyMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        galaxyMediaRecorder.setPreviewDisplay(getHolder().getSurface());
+        try {
+            galaxyMediaRecorder.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
     @SuppressLint("WrongConstant")
     private void openCamera2(){
         if (PermissionChecker.checkSelfPermission(getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             try {
+                galaxyMediaRecorder = new MediaRecorder();
                 mCameraManager.openCamera(mCameraId, stateCallback, mHandler);
             } catch (CameraAccessException e) {
                 e.printStackTrace();
@@ -351,9 +401,56 @@ public class Camera2SurfaceView extends SurfaceView {
 
     private void takePreview() {
         try {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//            galaxySetupMediaRecorder();
+
+//            Surface recorderSurface = galaxyMediaRecorder.getSurface();
+//            surfaces.add(recorderSurface);
+//            builder
+//                    = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+//            builder.addTarget(recorderSurface);
+
+
+
+
+
+
+
+
+
+
+
+
             builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             builder.addTarget(videoRenderer.getSurface());
-            mCameraDevice.createCaptureSession(Collections.singletonList(videoRenderer.getSurface()), new CameraCaptureSession.StateCallback() {
+
+            List<Surface> surfaces = new ArrayList<>();
+            surfaces.add(videoRenderer.getSurface());
+
+            mCameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                     if (null == mCameraDevice) return;
@@ -366,6 +463,7 @@ public class Camera2SurfaceView extends SurfaceView {
                     } catch (CameraAccessException e) {
                         e.printStackTrace();
                     }
+
                 }
 
                 @Override
