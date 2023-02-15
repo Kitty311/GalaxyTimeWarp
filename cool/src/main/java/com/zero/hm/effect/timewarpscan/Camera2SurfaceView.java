@@ -157,6 +157,7 @@ public class Camera2SurfaceView extends SurfaceView {
                                     int videoTexture = videoRenderer.getTexture();
                                     if(isScan){
                                         if(!isf){
+//                                            galaxyMediaRecorder.start();
 
                                             startTime = System.currentTimeMillis();
                                             scanHeight = pixelHeight*speed;
@@ -183,6 +184,7 @@ public class Camera2SurfaceView extends SurfaceView {
                                                 @Override
                                                 public void run() {
                                                     listener.quitScan();
+//                                                    galaxyMediaRecorder.stop();
                                                 }
                                             });
 
@@ -299,6 +301,7 @@ public class Camera2SurfaceView extends SurfaceView {
         mEglUtils.release();
     }
 
+    public boolean isFlashSupported = false;
     private Size[] mSizes;
     private void initCamera2() {
         HandlerThread handlerThread = new HandlerThread("Camera2");
@@ -316,6 +319,8 @@ public class Camera2SurfaceView extends SurfaceView {
             if(map != null){
                 mSizes = map.getOutputSizes(SurfaceTexture.class);
             }
+            Boolean available = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+            isFlashSupported = available != null && available;
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -397,58 +402,25 @@ public class Camera2SurfaceView extends SurfaceView {
         }
     };
 
-    private CaptureRequest.Builder builder;
+    public CaptureRequest.Builder builder;
 
     private void takePreview() {
         try {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            List<Surface> surfaces = new ArrayList<>();
+            Surface renderSurface = videoRenderer.getSurface();
+            surfaces.add(renderSurface);
+            builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+            builder.addTarget(renderSurface);
+//            Surface recorderSurface = galaxyMediaRecorder.getSurface();
+//            surfaces.add(recorderSurface);
 
 //            galaxySetupMediaRecorder();
 
-//            Surface recorderSurface = galaxyMediaRecorder.getSurface();
-//            surfaces.add(recorderSurface);
-//            builder
-//                    = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-//            builder.addTarget(recorderSurface);
+//            builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+//            builder.addTarget(videoRenderer.getSurface());
 
-
-
-
-
-
-
-
-
-
-
-
-            builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            builder.addTarget(videoRenderer.getSurface());
-
-            List<Surface> surfaces = new ArrayList<>();
-            surfaces.add(videoRenderer.getSurface());
+//            List<Surface> surfaces = new ArrayList<>();
+//            surfaces.add(videoRenderer.getSurface());
 
             mCameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
                 @Override

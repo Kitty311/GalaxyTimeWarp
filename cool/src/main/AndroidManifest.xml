@@ -23,6 +23,7 @@
         </activity>
         <activity android:name="com.zero.hm.effect.timewarpscan.ScanActivity"
             android:screenOrientation="portrait"/>
+        <activity android:name=".PreviewActivity" />
 
         <service
             android:name=".ScreenCaptureService"

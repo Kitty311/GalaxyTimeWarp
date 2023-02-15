@@ -107,12 +107,80 @@ public class ScanActivity extends AppCompatActivity
         width = metrics.widthPixels;
         height = metrics.heightPixels;
 
-
-
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
+        mMainHandler = new Handler();
+        HandlerThread ht = new HandlerThread("bg_view_recorder");
+        ht.start();
 
     }
+
+    private Handler mMainHandler;
+    private boolean mRecording = false;
+    private ViewRecorder mViewRecorder;
+
+    private void galaxyStartRecord() {
+        mViewRecorder = new ViewRecorder();
+//        mViewRecorder.setAudioSource(MediaRecorder.AudioSource.MIC); // uncomment this line if audio required
+        mViewRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mViewRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+//        mViewRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mViewRecorder.setVideoFrameRate(5); // 5fps
+        mViewRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mViewRecorder.setVideoSize(width, height);
+        mViewRecorder.setVideoEncodingBitRate(2000 * 1000);
+        mViewRecorder.setOutputFile(GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".mp4");
+        mViewRecorder.setOnErrorListener(mOnErrorListener);
+
+        mViewRecorder.setRecordedView(binding.root);
+        try {
+            mViewRecorder.prepare();
+            mViewRecorder.start();
+        } catch (IOException e) {
+            Log.e(TAG, "startRecord failed", e);
+            return;
+        }
+
+        Log.d(TAG, "startRecord successfully!");
+        mRecording = true;
+    }
+    private void galaxyStopRecord() {
+        try {
+            mViewRecorder.stop();
+            mViewRecorder.reset();
+            mViewRecorder.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        mRecording = false;
+        Log.d(TAG, "stopRecord successfully!");
+    }
+
+    private final MediaRecorder.OnErrorListener mOnErrorListener = new MediaRecorder.OnErrorListener() {
+
+        @Override
+        public void onError(MediaRecorder mr, int what, int extra) {
+            Log.e(TAG, "MediaRecorder error: type = " + what + ", code = " + extra);
+        }
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -160,7 +228,6 @@ public class ScanActivity extends AppCompatActivity
         mMediaRecorder = new MediaRecorder();
         try {
 
-
             File file = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
             if(!file.exists()) {
                 file.mkdirs();
@@ -199,33 +266,32 @@ public class ScanActivity extends AppCompatActivity
         }
     }
 
-
-
     private void stopScreenSharing() {
-        if (mVirtualDisplay == null) {
+        if (mVirtualDisplay == null || mMediaRecorder == null) {
             return;
         }
-        mMediaRecorder.stop();
-        mMediaRecorder.reset();
+        try {
+            mMediaRecorder.stop();
+            mMediaRecorder.reset();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         mVirtualDisplay.release();
         destroyMediaProjection();
         isRecording = false;
 
-        MediaScannerConnection.scanFile(this,new String[]{videofile.toString()},null,
-                new MediaScannerConnection.OnScanCompletedListener(){
-                    @Override
-                    public void onScanCompleted(String path, Uri uri) {
-                        Log.i("External","scanned"+path+":");
-                        Log.i("External","-> uri="+uri);
+//        MediaScannerConnection.scanFile(this,new String[]{videofile.toString()},null,
+//                new MediaScannerConnection.OnScanCompletedListener(){
+//                    @Override
+//                    public void onScanCompleted(String path, Uri uri) {
+//                        Log.i("External","scanned"+path+":");
+//                        Log.i("External","-> uri="+uri);
+//
+//                    }
+//                });
 
-                    }
-                });
-
-        /////////// show video
-
+        Toast.makeText(this, "Saved file path: " + videofile, Toast.LENGTH_LONG).show();
     }
-
-
 
     private void destroyMediaProjection() {
         if (mMediaProjection != null) {
@@ -273,10 +339,6 @@ public class ScanActivity extends AppCompatActivity
         return Integer.parseInt(binding.delayButton.getText().toString().replace("s delay", ""));
     }
 
-    private boolean getFlashState() {
-        return binding.flashButton.getText().toString().equals("Flash on");
-    }
-
     // when you click on button and torch open and
     // you do not close the torch again this code
     // will off the torch automatically
@@ -284,48 +346,6 @@ public class ScanActivity extends AppCompatActivity
     @Override
     public void finish() {
         super.finish();
-    }
-
-    private void setFlashState(boolean turnOn) {
-        if (turnOn) {
-            // Exception is handled, because to check
-            // whether the camera resource is being used by
-            // another service or not.
-            try {
-                // true sets the torch in ON mode
-                cameraManager.setTorchMode(getCameraID, true);
-
-                binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                        getDrawable(R.drawable.ic_flash),
-                        null, null);
-                binding.flashButton.setText("Flash on");
-                // Inform the user about the flashlight
-                // status using Toast message
-            } catch (Exception e) {
-                // prints stack trace on standard error
-                // output error stream
-                e.printStackTrace();
-            }
-        } else {
-            // Exception is handled, because to check
-            // whether the camera resource is being used by
-            // another service or not.
-            try {
-                // true sets the torch in OFF mode
-                cameraManager.setTorchMode(getCameraID, false);
-
-                binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                        getDrawable(R.drawable.ic_flash_off),
-                        null, null);
-                binding.flashButton.setText("Flash off");
-                // Inform the user about the flashlight
-                // status using Toast message
-            } catch (Exception e) {
-                // prints stack trace on standard error
-                // output error stream
-                e.printStackTrace();
-            }
-        }
     }
 
     private boolean isRecording = false;
@@ -399,7 +419,7 @@ public class ScanActivity extends AppCompatActivity
             @Override
             public void onClick(View view) {
                 if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH))
-                    setFlashState(!getFlashState());
+                    switchFlash();
                 else
                     Toast.makeText(ScanActivity.this, "Your device has no flash", Toast.LENGTH_SHORT).show();
             }
@@ -434,32 +454,19 @@ public class ScanActivity extends AppCompatActivity
         binding.btnCamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                binding.counterText.setVisibility(View.VISIBLE);
-                counterTime = getDelayTime();
-                new Thread(new Runnable() {
-                    public void run() {
-                        while (counterTime > 0) {
-                            // Update the progress bar and display the
-                            //current value in the text view
-                            handler.post(new Runnable() {
-                                public void run() {
-                                    binding.counterText.setText(counterTime -- + "");
-                                }
-                            });
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                onScan();
-                            }
-                        });
+                if (isRecording) {
+                    initRecorder();
+                    shareScreen();
+                } else {
+
+                    File file = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+                    if(!file.exists()) {
+                        file.mkdirs();
                     }
-                }).start();
+                    imageFile = GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".jpg";
+
+                    countdown(0, null);
+                }
         }});
 
         binding.btnSwap.setOnClickListener(new View.OnClickListener() {
@@ -470,11 +477,42 @@ public class ScanActivity extends AppCompatActivity
         });
 
     }
-    String saveFilePath = "";
+
+    private void countdown(int resultCode, Intent data) {
+
+        binding.counterText.setVisibility(View.VISIBLE);
+        counterTime = getDelayTime();
+        new Thread(new Runnable() {
+            public void run() {
+                while (counterTime > 0) {
+                    // Update the progress bar and display the
+                    //current value in the text view
+                    handler.post(new Runnable() {
+                        public void run() {
+                            binding.counterText.setText(counterTime -- + "");
+                        }
+                    });
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isRecording) {
+                            doScreenRecording(resultCode, data);
+                        }
+                        onScan();
+                    }
+                });
+            }
+        }).start();
+    }
 
     private void saveImage() {
         try {
-            stopScreenSharing();
             Camera2SurfaceView camera2SurfaceView = findViewById(R.id.camera_view);
             final Bitmap bitmap = Bitmap.createBitmap(
                     camera2SurfaceView.getWidth(),
@@ -487,7 +525,7 @@ public class ScanActivity extends AppCompatActivity
             handlerThread.start();
             PixelCopy.request(camera2SurfaceView, bitmap, (copyResult) -> {
                 if (copyResult == PixelCopy.SUCCESS) {
-                    saveFilePath = saveToInternalStorage(bitmap);
+                    saveToInternalStorage(bitmap);
                 } else {
                     Toast.makeText(ScanActivity.this, "Save image failed", Toast.LENGTH_SHORT).show();
                     return;
@@ -497,49 +535,32 @@ public class ScanActivity extends AppCompatActivity
         } catch(Exception e) {
 
         }
-        Toast.makeText(ScanActivity.this, "File saved successfully in " + saveFilePath, Toast.LENGTH_LONG).show();
+//        Toast.makeText(ScanActivity.this, "Saved file path: " + imageFile, Toast.LENGTH_LONG).show();
     }
 
-    private String saveToInternalStorage(Bitmap bitmapImage) {
-        File directory = getDirectory();
+    private void saveToInternalStorage(Bitmap bitmapImage) {
+        File myPath = new File(imageFile);
 
-        Log.d("TAG", "saveToInternalStorage: " + directory);
-
-        if (directory != null) {
-            File myPath = getFilePath(directory);
-
-            FileOutputStream fos = null;
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(myPath);
+            // Use the compress method on the BitMap object to write image to the OutputStream
+            bitmapImage.compress(Bitmap.CompressFormat.PNG, 100, fos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
             try {
-                fos = new FileOutputStream(myPath);
-                // Use the compress method on the BitMap object to write image to the OutputStream
-                bitmapImage.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            } catch (Exception e) {
+                fos.close();
+            } catch (IOException e) {
                 e.printStackTrace();
-            } finally {
-                try {
-                    fos.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
             }
-            return myPath.getAbsolutePath();
         }
-
-        return null;
     }
 
-    private File getFilePath(File directory) {
-        return new File(directory, System.currentTimeMillis() + ".jpg");
-    }
+    private String imageFile;
 
     private File getDirectory() {
-        File directory;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString() + "/TimeWarp");
-        } else {
-            directory = new File(Environment.getExternalStorageDirectory().toString() + "/TimeWarp");
-        }
-        directory = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+        File directory = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
 
         Log.d("TAG", "getDirectory: " + directory);
 
@@ -556,6 +577,13 @@ public class ScanActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        stopScreenSharing();
+        finish();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         stopService(new Intent(this, RecordService.class));
@@ -568,70 +596,117 @@ public class ScanActivity extends AppCompatActivity
             if (requestCode == CAPTURE_REQUEST_CODE) {
                 startService(ScreenCaptureService.getStartIntent(this, resultCode, data, this));
             } else if (requestCode == RECORD_REQUEST_CODE) {
-////////////////////////
-                mMediaProjectionCallback = new MediaProjectionCallback();
-
-
-                mMediaProjection = mProjectionManager.getMediaProjection(resultCode, data);
-//                moveTaskToBack(true);
-
-
-                timerTask = new TimerTask() {
-                    @Override
-                    public void run() {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(ScanActivity.this, "Screen Recording is started", Toast.LENGTH_SHORT).show();
-                                timerTask = new TimerTask() {
-                                    @Override
-                                    public void run() {
-                                        runOnUiThread(new Runnable() {
-                                            @Override
-                                            public void run() {
-
-                                                mMediaProjection.registerCallback(mMediaProjectionCallback, null);
-                                                mVirtualDisplay = mMediaProjection.createVirtualDisplay("MainActivity", width, height, mScreenDensity,
-                                                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
-
-                                                mMediaRecorder.start();
-
-                                                doScan();
-
-                                            }
-                                        });
-                                    }
-                                };
-                                timer.schedule(timerTask, (int)(100));
-                            }
-                        });
-                    }
-                };
-                timer.schedule(timerTask,(int)(100));
-
-
+                countdown(resultCode, data);
             }
         }
+    }
+
+    private void doScreenRecording(int resultCode, Intent data) {
+        mMediaProjectionCallback = new MediaProjectionCallback();
+        mMediaProjection = mProjectionManager.getMediaProjection(resultCode, data);
+//                moveTaskToBack(true);
+        timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+//                        Toast.makeText(ScanActivity.this, "Screen Recording is started", Toast.LENGTH_SHORT).show();
+                        timerTask = new TimerTask() {
+                            @Override
+                            public void run() {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mMediaProjection.registerCallback(mMediaProjectionCallback, null);
+                                        mVirtualDisplay = mMediaProjection.createVirtualDisplay("MainActivity", width, height, mScreenDensity,
+                                                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
+                                        mMediaRecorder.start();
+                                        doScan();
+                                    }
+                                });
+                            }
+                        };
+                        timer.schedule(timerTask, (int)(100));
+                    }
+                });
+            }
+        };
+        timer.schedule(timerTask,(int)(100));
     }
 
     private class MediaProjectionCallback extends MediaProjection.Callback {
         @Override
         public void onStop() {
             try {
-                stopScreenSharing();
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
-////////////////////
 
     @Override
     public void quitScan() {
-        saveImage();
+        if (isRecording)
+            stopScreenSharing();
+        else
+            saveImage();
 
+        startPreviewActivity(isRecording ? videofile : imageFile);
         binding.topbar.setVisibility(View.VISIBLE);
         binding.bottombar.setVisibility(View.VISIBLE);
+    }
+
+    private boolean isTorchOn = false;
+    public void switchFlash() {
+        try {
+            if (getCameraID.equals(BACK_CAMERA + "")) {
+                if (binding.cameraView.isFlashSupported) {
+                    if (isTorchOn) {
+                        cameraManager.setTorchMode(BACK_CAMERA + "", false);
+                        binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                                getDrawable(R.drawable.ic_flash_off), null, null);
+                        isTorchOn = false;
+                    } else {
+                        cameraManager.setTorchMode(BACK_CAMERA + "", true);
+                        binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                                getDrawable(R.drawable.ic_flash), null, null);
+                        isTorchOn = true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void setUpFlashButton() {
+        if (getCameraID.equals(BACK_CAMERA + "") && binding.cameraView.isFlashSupported) {
+            binding.flashButton.setEnabled(true);
+
+            if (isTorchOn) {
+                binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                        getDrawable(R.drawable.ic_flash_off),
+                        null, null);
+                binding.flashButton.setText("Flash off");
+            } else {
+                binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                        getDrawable(R.drawable.ic_flash),
+                        null, null);
+                binding.flashButton.setText("Flash on");
+            }
+
+        } else {
+            binding.flashButton.setEnabled(false);
+        }
+    }
+
+    private void startPreviewActivity(String path) {
+        finish();
+        Intent intent = new Intent(this, PreviewActivity.class);
+        intent.putExtra("file_path", path);
+        startActivity(intent);
     }
 
     public void onScan(){
@@ -639,6 +714,8 @@ public class ScanActivity extends AppCompatActivity
             //
 //            initRecorder();
 //            shareScreen();
+//            galaxyStartRecord();
+            doScan();
         } else {
             doScan();
         }
@@ -671,7 +748,7 @@ public class ScanActivity extends AppCompatActivity
             @Override
             public void run() {
                 stopProjection();
-                Toast.makeText(ScanActivity.this, "File saved successfully in " + filePath, Toast.LENGTH_LONG).show();
+//                Toast.makeText(ScanActivity.this, "File saved successfully in " + filePath, Toast.LENGTH_LONG).show();
             }
         });
     }

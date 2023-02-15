@@ -6,4 +6,6 @@ public interface Listener {
     public void moveScanLine(int pixel, boolean isHorizontal);
 
     public void quitScan();
+
+    public void setUpFlashButton();
 }

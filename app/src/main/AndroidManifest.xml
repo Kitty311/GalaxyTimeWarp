@@ -58,6 +58,7 @@
         <activity android:name="com.galaxy.filter.activity.PrivacyActivity"
             android:exported="true"
             android:screenOrientation="portrait"/>
+        <activity android:name="com.galaxy.filter.com.zero.hm.effect.timewarpscan.PreviewActivity" />
     </application>
 
 </manifest>
