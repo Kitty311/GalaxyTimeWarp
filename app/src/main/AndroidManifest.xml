@@ -8,7 +8,13 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.flash" />
+
     <!-- Allows access to the flashlight -->
     <application
         android:allowBackup="true"
@@ -17,7 +23,7 @@
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@drawable/galaxy_app_icon"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" >
+        android:theme="@style/GalaxyTheme" >
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -32,8 +38,7 @@
         <activity
             android:name=".activity.MainActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" >
+            android:screenOrientation="portrait" >
         </activity>
         <activity android:name=".activity.TestActivity"
             android:screenOrientation="portrait"/>

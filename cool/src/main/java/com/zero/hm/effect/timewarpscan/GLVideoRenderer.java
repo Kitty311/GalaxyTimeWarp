@@ -142,8 +142,7 @@ public class GLVideoRenderer {
         if(surfaceTexture == null){
             return;
         }
-        try {
-            surfaceTexture.updateTexImage();
+        surfaceTexture.updateTexImage();
         surfaceTexture.getTransformMatrix(mSTMatrix);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffers[0]);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
@@ -169,9 +168,6 @@ public class GLVideoRenderer {
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public void release() {

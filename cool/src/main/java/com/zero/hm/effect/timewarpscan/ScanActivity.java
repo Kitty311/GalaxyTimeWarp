@@ -1,13 +1,17 @@
 package com.zero.hm.effect.timewarpscan;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
 import android.hardware.display.DisplayManager;
@@ -28,6 +32,7 @@ import android.util.SparseIntArray;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
@@ -35,8 +40,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.zero.hm.effect.timewarpscan.databinding.ActivityScanBinding;
+import com.zero.hm.effect.timewarpscan.preference.SharedPref;
+import com.zero.hm.effect.timewarpscan.utils.Utilities;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -68,11 +76,17 @@ public class ScanActivity extends AppCompatActivity
 
     private int counterTime = 3;
 
+    Camera camera;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityScanBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+//        mPreference = SharedPref.getInstance(this);
+
+//        camera = Camera.open();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(new Intent(this, RecordService.class));
@@ -251,7 +265,6 @@ public class ScanActivity extends AppCompatActivity
             mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
             mMediaRecorder.setVideoEncodingBitRate(512 * 1000);
             mMediaRecorder.setVideoFrameRate(30);
-            mMediaRecorder.setVideoEncodingBitRate(3000000);
             int rotation = getWindowManager().getDefaultDisplay().getRotation();
             int orientation = ORIENTATIONS.get(rotation + 90);
             mMediaRecorder.setOrientationHint(orientation);
@@ -266,7 +279,7 @@ public class ScanActivity extends AppCompatActivity
         }
     }
 
-    private void stopScreenSharing() {
+    private void stopScreenSharing(boolean isSuccess) {
         if (mVirtualDisplay == null || mMediaRecorder == null) {
             return;
         }
@@ -275,6 +288,11 @@ public class ScanActivity extends AppCompatActivity
             mMediaRecorder.reset();
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            if (isSuccess)
+                startPreviewActivity();
+            else
+                Log.e("ScanActivity", "Stop Screen Failed");
         }
         mVirtualDisplay.release();
         destroyMediaProjection();
@@ -290,7 +308,7 @@ public class ScanActivity extends AppCompatActivity
 //                    }
 //                });
 
-        Toast.makeText(this, "Saved file path: " + videofile, Toast.LENGTH_LONG).show();
+//        Toast.makeText(this, "Saved file path: " + videofile, Toast.LENGTH_LONG).show();
     }
 
     private void destroyMediaProjection() {
@@ -418,8 +436,10 @@ public class ScanActivity extends AppCompatActivity
         binding.flashButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH))
+                if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH)) {
+//                    performFlashLightButtonClick();
                     switchFlash();
+                }
                 else
                     Toast.makeText(ScanActivity.this, "Your device has no flash", Toast.LENGTH_SHORT).show();
             }
@@ -551,6 +571,8 @@ public class ScanActivity extends AppCompatActivity
         } finally {
             try {
                 fos.close();
+
+                startPreviewActivity();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -579,14 +601,19 @@ public class ScanActivity extends AppCompatActivity
     @Override
     protected void onStop() {
         super.onStop();
-        stopScreenSharing();
+        stopScreenSharing(false);
         finish();
     }
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         stopService(new Intent(this, RecordService.class));
+//        if (mPreference.getBooleanValue(IS_FLASHLIGHT_ON)) {
+//            Utilities.stopFlashlight(this, mPreference);
+//        }
+//        unregisterMyOwnReceiver();
+        super.onDestroy();
+
     }
 
     @Override
@@ -648,64 +675,42 @@ public class ScanActivity extends AppCompatActivity
     @Override
     public void quitScan() {
         if (isRecording)
-            stopScreenSharing();
+            stopScreenSharing(true);
         else
             saveImage();
 
-        startPreviewActivity(isRecording ? videofile : imageFile);
         binding.topbar.setVisibility(View.VISIBLE);
         binding.bottombar.setVisibility(View.VISIBLE);
     }
 
     private boolean isTorchOn = false;
     public void switchFlash() {
-        try {
-            if (getCameraID.equals(BACK_CAMERA + "")) {
-                if (binding.cameraView.isFlashSupported) {
-                    if (isTorchOn) {
-                        cameraManager.setTorchMode(BACK_CAMERA + "", false);
-                        binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                                getDrawable(R.drawable.ic_flash_off), null, null);
-                        isTorchOn = false;
-                    } else {
-                        cameraManager.setTorchMode(BACK_CAMERA + "", true);
-                        binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                                getDrawable(R.drawable.ic_flash), null, null);
-                        isTorchOn = true;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        isTorchOn = !isTorchOn;
+
+//        Camera.Parameters p = camera.getParameters();
+//        p.setFlashMode(isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH
+//                : Camera.Parameters.FLASH_MODE_OFF);
+//        camera.setParameters(p);
+
+//        CameraManager camManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+//        String cameraId = null; // Usually front camera is at 0 position.
+//        try {
+//            cameraId = camManager.getCameraIdList()[0];
+//            camManager.setTorchMode(cameraId, isTorchOn);
+            binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                    isTorchOn ? getDrawable(R.drawable.ic_flash)
+                            : getDrawable(R.drawable.ic_flash_off), null, null);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            binding.errorText.setText(e.getMessage());
+//        }
+        binding.cameraView.takePreview(isTorchOn);
     }
 
-    @Override
-    public void setUpFlashButton() {
-        if (getCameraID.equals(BACK_CAMERA + "") && binding.cameraView.isFlashSupported) {
-            binding.flashButton.setEnabled(true);
-
-            if (isTorchOn) {
-                binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                        getDrawable(R.drawable.ic_flash_off),
-                        null, null);
-                binding.flashButton.setText("Flash off");
-            } else {
-                binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                        getDrawable(R.drawable.ic_flash),
-                        null, null);
-                binding.flashButton.setText("Flash on");
-            }
-
-        } else {
-            binding.flashButton.setEnabled(false);
-        }
-    }
-
-    private void startPreviewActivity(String path) {
+    private void startPreviewActivity() {
         finish();
         Intent intent = new Intent(this, PreviewActivity.class);
-        intent.putExtra("file_path", path);
+        intent.putExtra("file_path", isRecording ? videofile : imageFile);
         startActivity(intent);
     }
 
@@ -782,7 +787,8 @@ public class ScanActivity extends AppCompatActivity
             switchCamera(this, BACK_CAMERA);
         }
         binding.cameraView.destroyAll();
-        recreate();
+        finish();
+        startActivity(new Intent(this, ScanActivity.class));
     }
 
     public void switchCamera(Context context, int camera) {
@@ -823,4 +829,77 @@ public class ScanActivity extends AppCompatActivity
         super.onPointerCaptureChanged(hasCapture);
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public static final String ACTION_UPDATE_UI = "in.kiran.ACTION_UPDATE_UI";
+    public static final String IS_FLASHLIGHT_ON = "is_flashlight_on";
+    private static final int CAMERA_REQUEST = 0x001020;
+//
+//    protected SharedPref mPreference;
+//
+//    private BroadcastReceiver mImplicitBroadCast = new BroadcastReceiver() {
+//
+//        @Override
+//        public void onReceive(Context context, Intent intent) {
+//            String action = intent.getAction();
+//            if (action == null) {
+//                return;
+//            }
+//            switch (action) {
+//                case ACTION_UPDATE_UI:
+//                    updateUI();
+//                    break;
+//            }
+//        }
+//    };
+//
+//    @Override
+//    protected void onStart() {
+//        updateUI();
+//        super.onStart();
+//    }
+//
+//    private void registerMyOwnReceiver() {
+//        IntentFilter intentFilterLocal = new IntentFilter();
+//        intentFilterLocal.addAction(ACTION_UPDATE_UI);
+//        LocalBroadcastManager.getInstance(this).registerReceiver(mImplicitBroadCast, intentFilterLocal);
+//    }
+//
+//    private void unregisterMyOwnReceiver() {
+//        if (mImplicitBroadCast != null) {
+//            LocalBroadcastManager.getInstance(this).unregisterReceiver(mImplicitBroadCast);
+//        }
+//    }
+//
+//    private void updateUI() {
+//        if (mPreference.getBooleanValue(IS_FLASHLIGHT_ON)) {
+//            binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+//                    getDrawable(R.drawable.ic_flash), null, null);
+//        } else {
+//            binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+//                    getDrawable(R.drawable.ic_flash_off), null, null);
+//        }
+//    }
+//
+//    private void performFlashLightButtonClick() {
+//
+//        if (mPreference.getBooleanValue(IS_FLASHLIGHT_ON)) {
+//            Utilities.stopFlashlight(this, mPreference);
+//        } else {
+//            Utilities.startFlashlight(this, mPreference);
+//        }
+//    }
 }

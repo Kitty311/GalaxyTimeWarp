@@ -386,4 +386,11 @@
         android:textSize="100sp"
         android:text="3"/>
 
+
+    <TextView
+        android:id="@+id/errorText"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:textColor="#fff"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

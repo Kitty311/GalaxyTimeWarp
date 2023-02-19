@@ -25,6 +25,8 @@ import android.os.HandlerThread;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.Range;
+import android.util.Rational;
 import android.util.Size;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -118,7 +120,9 @@ public class Camera2SurfaceView extends SurfaceView {
         init(context);
     }
 
-    private void init(final Context context){
+    private boolean mTurnFlashOn = false;
+
+    public void init(final Context context){
         cameraThread = new HandlerThread("Camera2Thread");
         cameraThread.start();
         cameraHandler = new Handler(cameraThread.getLooper());
@@ -263,6 +267,12 @@ public class Camera2SurfaceView extends SurfaceView {
             });
         }
 
+
+
+
+
+
+
         @Override
         public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
             cameraHandler.post(new Runnable() {
@@ -275,7 +285,7 @@ public class Camera2SurfaceView extends SurfaceView {
     };
 
     public void setBrightness(int value) {
-        int brightness = value;
+        int brightness = value % 20;
         builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, brightness);
         applySettings();
     }
@@ -283,7 +293,7 @@ public class Camera2SurfaceView extends SurfaceView {
     private void applySettings() {
         try {
             mCameraCaptureSession.setRepeatingRequest(builder.build(), null, null);
-        } catch (CameraAccessException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -385,11 +395,12 @@ public class Camera2SurfaceView extends SurfaceView {
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
             mCameraDevice = cameraDevice;
-            takePreview();
+            takePreview(mTurnFlashOn);
         }
 
         @Override
         public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+            mCameraDevice = cameraDevice;
             if (mCameraDevice != null) {
                 mCameraDevice.close();
                 mCameraDevice = null;
@@ -404,12 +415,15 @@ public class Camera2SurfaceView extends SurfaceView {
 
     public CaptureRequest.Builder builder;
 
-    private void takePreview() {
+    public void takePreview(boolean turnFlashOn) {
         try {
+
+            this.mTurnFlashOn = turnFlashOn;
+
             List<Surface> surfaces = new ArrayList<>();
             Surface renderSurface = videoRenderer.getSurface();
             surfaces.add(renderSurface);
-            builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+            builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             builder.addTarget(renderSurface);
 //            Surface recorderSurface = galaxyMediaRecorder.getSurface();
 //            surfaces.add(recorderSurface);
@@ -428,7 +442,9 @@ public class Camera2SurfaceView extends SurfaceView {
                     if (null == mCameraDevice) return;
                     mCameraCaptureSession = cameraCaptureSession;
                     builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                    builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+                    builder.set(CaptureRequest.FLASH_MODE, mTurnFlashOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+//                    builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+//                    builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF);
                     CaptureRequest previewRequest = builder.build();
                     try {
                         mCameraCaptureSession.setRepeatingRequest(previewRequest, null, mHandler);

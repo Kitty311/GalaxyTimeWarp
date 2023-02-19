@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="deploymentTargetDropDown">
-    <runningDeviceTargetSelectedWithDropDown>
+    <targetSelectedWithDropDown>
       <Target>
-        <type value="RUNNING_DEVICE_TARGET" />
+        <type value="QUICK_BOOT_TARGET" />
         <deviceKey>
           <Key>
             <type value="VIRTUAL_DEVICE_PATH" />
-            <value value="C:\Users\Administrator\.android\avd\Galaxy311_10.avd" />
+            <value value="C:\Users\Administrator\.android\avd\Nexus_5X_API_30.avd" />
           </Key>
         </deviceKey>
       </Target>
-    </runningDeviceTargetSelectedWithDropDown>
-    <timeTargetWasSelectedWithDropDown value="2023-02-15T17:41:52.191003700Z" />
+    </targetSelectedWithDropDown>
+    <timeTargetWasSelectedWithDropDown value="2023-02-19T09:15:41.814809600Z" />
   </component>
 </project>

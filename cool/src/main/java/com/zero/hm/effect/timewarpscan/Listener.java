@@ -7,5 +7,4 @@ public interface Listener {
 
     public void quitScan();
 
-    public void setUpFlashButton();
 }
