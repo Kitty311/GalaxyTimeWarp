@@ -267,12 +267,6 @@ public class Camera2SurfaceView extends SurfaceView {
             });
         }
 
-
-
-
-
-
-
         @Override
         public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
             cameraHandler.post(new Runnable() {
@@ -339,21 +333,12 @@ public class Camera2SurfaceView extends SurfaceView {
 
     private Size mPreviewSize;
 
-
-
-
-
-
-
-
-
-
     private MediaRecorder galaxyMediaRecorder;
     private void galaxySetupMediaRecorder() {
         galaxyMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         galaxyMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         galaxyMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        galaxyMediaRecorder.setOutputFile(GalaxyConstants.FILTER_IMAGE_SAVED_PATH
+        galaxyMediaRecorder.setOutputFile(GalaxyConstants.GetSavePath(getContext())
                 + System.currentTimeMillis() + ".mp4");
         galaxyMediaRecorder.setVideoEncodingBitRate(10000000);
         galaxyMediaRecorder.setVideoFrameRate(30);
@@ -367,18 +352,6 @@ public class Camera2SurfaceView extends SurfaceView {
             e.printStackTrace();
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
     @SuppressLint("WrongConstant")
     private void openCamera2(){
@@ -425,16 +398,6 @@ public class Camera2SurfaceView extends SurfaceView {
             surfaces.add(renderSurface);
             builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             builder.addTarget(renderSurface);
-//            Surface recorderSurface = galaxyMediaRecorder.getSurface();
-//            surfaces.add(recorderSurface);
-
-//            galaxySetupMediaRecorder();
-
-//            builder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-//            builder.addTarget(videoRenderer.getSurface());
-
-//            List<Surface> surfaces = new ArrayList<>();
-//            surfaces.add(videoRenderer.getSurface());
 
             mCameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
                 @Override

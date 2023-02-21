@@ -1,29 +1,21 @@
 package com.zero.hm.effect.timewarpscan;
 
-import android.Manifest;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.BroadcastReceiver;
+import static com.zero.hm.effect.timewarpscan.GalaxyConstants.recordIntent;
+
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaRecorder;
-import android.media.MediaScannerConnection;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.DisplayMetrics;
@@ -32,7 +24,6 @@ import android.util.SparseIntArray;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
@@ -40,18 +31,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.zero.hm.effect.timewarpscan.databinding.ActivityScanBinding;
-import com.zero.hm.effect.timewarpscan.preference.SharedPref;
-import com.zero.hm.effect.timewarpscan.utils.Utilities;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -76,27 +62,21 @@ public class ScanActivity extends AppCompatActivity
 
     private int counterTime = 3;
 
-    Camera camera;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityScanBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-//        mPreference = SharedPref.getInstance(this);
-
-//        camera = Camera.open();
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(new Intent(this, RecordService.class));
+            Intent intent = new Intent(this, RecordService.class);
+            intent.setAction("STARTFOREGROUND_ACTION");
+            GalaxyConstants.curService = startForegroundService(intent);
         }
 
         // cameraManager to interact with camera devices
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
 
-        // Exception is handled, because to check whether
-        // the camera resource is being used by another
         // service or not.
         try {
             // O means back camera unit,
@@ -109,11 +89,6 @@ public class ScanActivity extends AppCompatActivity
         binding.cameraView.setListener(this);
         clickListeners();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(new Intent(this, RecordService.class));
-        }
-
-
         DisplayMetrics metrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
 
@@ -121,53 +96,13 @@ public class ScanActivity extends AppCompatActivity
         width = metrics.widthPixels;
         height = metrics.heightPixels;
 
-        mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-
-        mMainHandler = new Handler();
-        HandlerThread ht = new HandlerThread("bg_view_recorder");
-        ht.start();
-
-    }
-
-    private Handler mMainHandler;
-    private boolean mRecording = false;
-    private ViewRecorder mViewRecorder;
-
-    private void galaxyStartRecord() {
-        mViewRecorder = new ViewRecorder();
-//        mViewRecorder.setAudioSource(MediaRecorder.AudioSource.MIC); // uncomment this line if audio required
-        mViewRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        mViewRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-//        mViewRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-        mViewRecorder.setVideoFrameRate(5); // 5fps
-        mViewRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mViewRecorder.setVideoSize(width, height);
-        mViewRecorder.setVideoEncodingBitRate(2000 * 1000);
-        mViewRecorder.setOutputFile(GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".mp4");
-        mViewRecorder.setOnErrorListener(mOnErrorListener);
-
-        mViewRecorder.setRecordedView(binding.root);
-        try {
-            mViewRecorder.prepare();
-            mViewRecorder.start();
-        } catch (IOException e) {
-            Log.e(TAG, "startRecord failed", e);
-            return;
+        if (GalaxyConstants.projectionManager == null) {
+            mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+            GalaxyConstants.projectionManager = mProjectionManager;
+        } else {
+            mProjectionManager = GalaxyConstants.projectionManager;
         }
 
-        Log.d(TAG, "startRecord successfully!");
-        mRecording = true;
-    }
-    private void galaxyStopRecord() {
-        try {
-            mViewRecorder.stop();
-            mViewRecorder.reset();
-            mViewRecorder.release();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        mRecording = false;
-        Log.d(TAG, "stopRecord successfully!");
     }
 
     private final MediaRecorder.OnErrorListener mOnErrorListener = new MediaRecorder.OnErrorListener() {
@@ -178,36 +113,10 @@ public class ScanActivity extends AppCompatActivity
         }
     };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /////////////////////////
     int width, height;
     private Timer timer = new Timer();
     private TimerTask timerTask;
-
 
     private static final String TAG = "MainActivity";
     private String videofile= "";
@@ -219,36 +128,25 @@ public class ScanActivity extends AppCompatActivity
     private MediaRecorder mMediaRecorder;
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private void shareScreen() {
-        if (mMediaProjection == null) {
+        if (recordIntent == null) {
             startActivityForResult(mProjectionManager.createScreenCaptureIntent(), RECORD_REQUEST_CODE);
             return;
         }
 
-
-        mVirtualDisplay = createVirtualDisplay();
-
-
-        mMediaRecorder.start();
-        isRecording = true;
-    }
-
-    private VirtualDisplay createVirtualDisplay() {
-
-        return mMediaProjection.createVirtualDisplay(getClass().getName(), width, height , mScreenDensity,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
+        doScreenRecording(RESULT_OK, recordIntent);
     }
 
     private void initRecorder() {
         mMediaRecorder = new MediaRecorder();
         try {
 
-            File file = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+            File file = new File(GalaxyConstants.GetSavePath(this));
             if(!file.exists()) {
                 file.mkdirs();
             }
 
             Log.e("e","Before");
-            videofile= GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".mp4";
+            videofile= GalaxyConstants.GetSavePath(this) + System.currentTimeMillis() + ".mp4";
             File file1 = new File(videofile);
             Log.e("e","after");
 
@@ -270,9 +168,6 @@ public class ScanActivity extends AppCompatActivity
             mMediaRecorder.setOrientationHint(orientation);
             mMediaRecorder.setOutputFile(videofile);
             mMediaRecorder.prepare();
-
-
-
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -298,17 +193,6 @@ public class ScanActivity extends AppCompatActivity
         destroyMediaProjection();
         isRecording = false;
 
-//        MediaScannerConnection.scanFile(this,new String[]{videofile.toString()},null,
-//                new MediaScannerConnection.OnScanCompletedListener(){
-//                    @Override
-//                    public void onScanCompleted(String path, Uri uri) {
-//                        Log.i("External","scanned"+path+":");
-//                        Log.i("External","-> uri="+uri);
-//
-//                    }
-//                });
-
-//        Toast.makeText(this, "Saved file path: " + videofile, Toast.LENGTH_LONG).show();
     }
 
     private void destroyMediaProjection() {
@@ -318,29 +202,8 @@ public class ScanActivity extends AppCompatActivity
             mMediaProjection = null;
         }
 
-
         Log.i(TAG, "MediaProjection Stopped");
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    ////////////////////////
 
     private Handler handler = new Handler();
 
@@ -364,6 +227,9 @@ public class ScanActivity extends AppCompatActivity
     @Override
     public void finish() {
         super.finish();
+//        Intent intent = new Intent(this, RecordService.class);
+//        intent.setAction("STOPFOREGROUND_ACTION");
+//        startService(intent);
     }
 
     private boolean isRecording = false;
@@ -479,11 +345,11 @@ public class ScanActivity extends AppCompatActivity
                     shareScreen();
                 } else {
 
-                    File file = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+                    File file = new File(GalaxyConstants.GetSavePath(ScanActivity.this));
                     if(!file.exists()) {
                         file.mkdirs();
                     }
-                    imageFile = GalaxyConstants.FILTER_IMAGE_SAVED_PATH + System.currentTimeMillis() + ".jpg";
+                    imageFile = GalaxyConstants.GetSavePath(ScanActivity.this) + System.currentTimeMillis() + ".jpg";
 
                     countdown(0, null);
                 }
@@ -582,7 +448,7 @@ public class ScanActivity extends AppCompatActivity
     private String imageFile;
 
     private File getDirectory() {
-        File directory = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+        File directory = new File(GalaxyConstants.GetSavePath(this));
 
         Log.d("TAG", "getDirectory: " + directory);
 
@@ -607,13 +473,7 @@ public class ScanActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
-        stopService(new Intent(this, RecordService.class));
-//        if (mPreference.getBooleanValue(IS_FLASHLIGHT_ON)) {
-//            Utilities.stopFlashlight(this, mPreference);
-//        }
-//        unregisterMyOwnReceiver();
         super.onDestroy();
-
     }
 
     @Override
@@ -623,22 +483,22 @@ public class ScanActivity extends AppCompatActivity
             if (requestCode == CAPTURE_REQUEST_CODE) {
                 startService(ScreenCaptureService.getStartIntent(this, resultCode, data, this));
             } else if (requestCode == RECORD_REQUEST_CODE) {
+                recordIntent = data;
                 countdown(resultCode, data);
             }
         }
     }
 
     private void doScreenRecording(int resultCode, Intent data) {
+
         mMediaProjectionCallback = new MediaProjectionCallback();
         mMediaProjection = mProjectionManager.getMediaProjection(resultCode, data);
-//                moveTaskToBack(true);
         timerTask = new TimerTask() {
             @Override
             public void run() {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-//                        Toast.makeText(ScanActivity.this, "Screen Recording is started", Toast.LENGTH_SHORT).show();
                         timerTask = new TimerTask() {
                             @Override
                             public void run() {
@@ -687,23 +547,9 @@ public class ScanActivity extends AppCompatActivity
     public void switchFlash() {
         isTorchOn = !isTorchOn;
 
-//        Camera.Parameters p = camera.getParameters();
-//        p.setFlashMode(isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH
-//                : Camera.Parameters.FLASH_MODE_OFF);
-//        camera.setParameters(p);
-
-//        CameraManager camManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-//        String cameraId = null; // Usually front camera is at 0 position.
-//        try {
-//            cameraId = camManager.getCameraIdList()[0];
-//            camManager.setTorchMode(cameraId, isTorchOn);
-            binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-                    isTorchOn ? getDrawable(R.drawable.ic_flash)
-                            : getDrawable(R.drawable.ic_flash_off), null, null);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            binding.errorText.setText(e.getMessage());
-//        }
+        binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
+                isTorchOn ? getDrawable(R.drawable.ic_flash)
+                        : getDrawable(R.drawable.ic_flash_off), null, null);
         binding.cameraView.takePreview(isTorchOn);
     }
 
@@ -712,18 +558,12 @@ public class ScanActivity extends AppCompatActivity
         Intent intent = new Intent(this, PreviewActivity.class);
         intent.putExtra("file_path", isRecording ? videofile : imageFile);
         startActivity(intent);
+        mMediaProjection.stop();
+        mMediaProjection.unregisterCallback(mMediaProjectionCallback);
     }
 
     public void onScan(){
-        if (isRecording) {
-            //
-//            initRecorder();
-//            shareScreen();
-//            galaxyStartRecord();
-            doScan();
-        } else {
-            doScan();
-        }
+        doScan();
     }
 
     private void doScan() {
@@ -753,7 +593,6 @@ public class ScanActivity extends AppCompatActivity
             @Override
             public void run() {
                 stopProjection();
-//                Toast.makeText(ScanActivity.this, "File saved successfully in " + filePath, Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -829,77 +668,4 @@ public class ScanActivity extends AppCompatActivity
         super.onPointerCaptureChanged(hasCapture);
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    public static final String ACTION_UPDATE_UI = "in.kiran.ACTION_UPDATE_UI";
-    public static final String IS_FLASHLIGHT_ON = "is_flashlight_on";
-    private static final int CAMERA_REQUEST = 0x001020;
-//
-//    protected SharedPref mPreference;
-//
-//    private BroadcastReceiver mImplicitBroadCast = new BroadcastReceiver() {
-//
-//        @Override
-//        public void onReceive(Context context, Intent intent) {
-//            String action = intent.getAction();
-//            if (action == null) {
-//                return;
-//            }
-//            switch (action) {
-//                case ACTION_UPDATE_UI:
-//                    updateUI();
-//                    break;
-//            }
-//        }
-//    };
-//
-//    @Override
-//    protected void onStart() {
-//        updateUI();
-//        super.onStart();
-//    }
-//
-//    private void registerMyOwnReceiver() {
-//        IntentFilter intentFilterLocal = new IntentFilter();
-//        intentFilterLocal.addAction(ACTION_UPDATE_UI);
-//        LocalBroadcastManager.getInstance(this).registerReceiver(mImplicitBroadCast, intentFilterLocal);
-//    }
-//
-//    private void unregisterMyOwnReceiver() {
-//        if (mImplicitBroadCast != null) {
-//            LocalBroadcastManager.getInstance(this).unregisterReceiver(mImplicitBroadCast);
-//        }
-//    }
-//
-//    private void updateUI() {
-//        if (mPreference.getBooleanValue(IS_FLASHLIGHT_ON)) {
-//            binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-//                    getDrawable(R.drawable.ic_flash), null, null);
-//        } else {
-//            binding.flashButton.setCompoundDrawablesWithIntrinsicBounds(null,
-//                    getDrawable(R.drawable.ic_flash_off), null, null);
-//        }
-//    }
-//
-//    private void performFlashLightButtonClick() {
-//
-//        if (mPreference.getBooleanValue(IS_FLASHLIGHT_ON)) {
-//            Utilities.stopFlashlight(this, mPreference);
-//        } else {
-//            Utilities.startFlashlight(this, mPreference);
-//        }
-//    }
 }

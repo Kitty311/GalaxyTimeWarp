@@ -184,7 +184,7 @@ public class ScreenCaptureService extends Service {
         } else {
             directory = new File(Environment.getExternalStorageDirectory().toString() + "/TimeWarp");
         }
-        directory = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+        directory = new File(GalaxyConstants.GetSavePath(getApplicationContext()));
 
         Log.d("TAG", "getDirectory: " + directory);
 

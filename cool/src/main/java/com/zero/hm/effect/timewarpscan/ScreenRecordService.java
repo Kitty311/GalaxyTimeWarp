@@ -177,11 +177,11 @@ public class ScreenRecordService extends Service implements SurfaceHolder.Callba
                 mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
                 mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
 
-                File directory = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+                File directory = new File(GalaxyConstants.GetSavePath(getApplicationContext()));
                 if (!directory.exists())
                     directory.mkdirs();
                 String fileNameString = System.currentTimeMillis() + ".mp4";
-                String uniqueOutFile = GalaxyConstants.FILTER_IMAGE_SAVED_PATH + fileNameString;
+                String uniqueOutFile = GalaxyConstants.GetSavePath(getApplicationContext()) + fileNameString;
                 outFile = new File(directory, fileNameString);
                 if (outFile.exists()) {
                     outFile.delete();

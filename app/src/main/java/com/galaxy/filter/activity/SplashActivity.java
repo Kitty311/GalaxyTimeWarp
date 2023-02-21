@@ -115,19 +115,19 @@ public class SplashActivity extends AppCompatActivity {
 
     private void requestPermission() {
         if (SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                intent.addCategory("android.intent.category.DEFAULT");
-                intent.setData(Uri.parse(String.format("package:%s",getApplicationContext().getPackageName())));
-                startActivityForResult(intent, 2296);
-            } catch (Exception e) {
-                Intent intent = new Intent();
-                intent.setAction(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                startActivityForResult(intent, 2296);
-            }
+//            try {
+//                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+//                intent.addCategory("android.intent.category.DEFAULT");
+//                intent.setData(Uri.parse(String.format("package:%s",getApplicationContext().getPackageName())));
+//                startActivityForResult(intent, 2296);
+//            } catch (Exception e) {
+//                Intent intent = new Intent();
+//                intent.setAction(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+//                startActivityForResult(intent, 2296);
+//            }
         } else {
             //below android 11
-            ActivityCompat.requestPermissions(SplashActivity.this, new String[]{WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+//            ActivityCompat.requestPermissions(SplashActivity.this, new String[]{WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
         }
         ActivityCompat.requestPermissions(this, new String[]{ CAMERA, RECORD_AUDIO, SYSTEM_ALERT_WINDOW }, 5);
     }
@@ -158,19 +158,20 @@ public class SplashActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case PERMISSION_REQUEST_CODE:
-                if (grantResults.length > 0) {
-                    boolean CAMERA = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-
-                    if (CAMERA) {
-                        // perform action when allow permission success
-                    } else {
-                        Toast.makeText(this, "Allow permissions!", Toast.LENGTH_SHORT).show();
-                    }
-                }
-                break;
-        }
+//        switch (requestCode) {
+//            case PERMISSION_REQUEST_CODE:
+//                if (grantResults.length > 0) {
+//                    boolean CAMERA = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+//
+//                    if (CAMERA) {
+//                        // perform action when allow permission success
+//                    } else {
+//                        Toast.makeText(this, "Allow permissions!", Toast.LENGTH_SHORT).show();
+//                    }
+//                }
+//                break;
+//        }
+        enterToMainActivity();
     }
 
     @Override

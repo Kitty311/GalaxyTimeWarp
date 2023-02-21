@@ -31,7 +31,7 @@ public class GalleryVideoView extends RelativeLayout {
         recyclerView.setLayoutManager(new GridLayoutManager(mContext, 2));
         if (recyclerView == null) return;
         List<GalaxyItemModel> list = new ArrayList<>();
-        File appDirectory = new File(GalaxyConstants.FILTER_IMAGE_SAVED_PATH);
+        File appDirectory = new File(GalaxyConstants.GetSavePath(context));
         if (appDirectory.exists()) {
             File[] filePaths = appDirectory.listFiles();
             if (filePaths != null)
