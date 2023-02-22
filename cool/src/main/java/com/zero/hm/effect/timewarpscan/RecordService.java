@@ -37,16 +37,16 @@ public class RecordService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent.getAction().equals("STARTFOREGROUND_ACTION")) {
-            Log.i("Record Service", "Received Start Foreground Intent ");
-            // your start service code
-        }
-        else if (intent.getAction().equals("STOPFOREGROUND_ACTION")) {
-            Log.i("Record Service", "Received Stop Foreground Intent");
-            //your end servce code
-            stopForeground(true);
-            stopSelfResult(startId);
-        }
+//        if (intent.getAction().equals("STARTFOREGROUND_ACTION")) {
+//            Log.i("Record Service", "Received Start Foreground Intent ");
+//            // your start service code
+//        }
+//        else if (intent.getAction().equals("STOPFOREGROUND_ACTION")) {
+//            Log.i("Record Service", "Received Stop Foreground Intent");
+//            //your end servce code
+//            stopForeground(true);
+//            stopSelfResult(startId);
+//        }
         String chanId = "CHANNEL_ID";
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             chanId = createNotificationChannel("my_service", "My Background Service");
