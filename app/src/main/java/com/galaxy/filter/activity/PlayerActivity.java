@@ -1,26 +1,40 @@
-package com.galaxy.filter.helper;
+package com.galaxy.filter.activity;
 
-import android.content.Context;
-import android.content.res.AssetFileDescriptor;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.MediaController;
-import android.widget.RelativeLayout;
 import android.widget.VideoView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-public class GalaxyViewer extends AppCompatActivity {
+import com.galaxy.filter.R;
+import com.zero.hm.effect.timewarpscan.ScanActivity;
+
+public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        LinearLayout container = new LinearLayout(this);
-        container.setGravity(Gravity.CENTER);
+        setContentView(R.layout.galaxy_activity_player);
+        findViewById(R.id.btnBack).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finish();
+            }
+        });
+        findViewById(R.id.btnTry).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(PlayerActivity.this, ScanActivity.class));
+                finish();
+            }
+        });
+        LinearLayout container = findViewById(R.id.container);
         boolean isImage = getIntent().getBooleanExtra("image_viewer", true);
         String path = getIntent().getStringExtra("path_uri");
         Uri uri = Uri.parse(path);
@@ -45,6 +59,5 @@ public class GalaxyViewer extends AppCompatActivity {
             videoView.start();
             container.addView(videoView);
         }
-        setContentView(container);
     }
 }

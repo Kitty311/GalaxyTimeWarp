@@ -14,11 +14,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.galaxy.filter.helper.GalaxyItemModel;
 import com.galaxy.filter.helper.GalaxyRecyclerViewAdapter;
 import com.galaxy.filter.R;
-import com.galaxy.filter.helper.GalaxyViewer;
+import com.galaxy.filter.activity.PlayerActivity;
 import com.zero.hm.effect.timewarpscan.GalaxyConstants;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,7 +68,7 @@ public class ExploreFragment extends Fragment {
             @Override
             public void onItemClick(int position, View v) {
                 GalaxyItemModel itemModel = list.get(position);
-                Intent intent = new Intent(context, GalaxyViewer.class);
+                Intent intent = new Intent(context, PlayerActivity.class);
                 intent.putExtra("image_viewer", false);
                 intent.putExtra("path_uri", itemModel.uriPath);
                 startActivity(intent);

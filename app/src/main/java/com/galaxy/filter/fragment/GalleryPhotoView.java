@@ -1,7 +1,6 @@
 package com.galaxy.filter.fragment;
 
 import android.content.Context;
-import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.RelativeLayout;
@@ -12,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.galaxy.filter.R;
 import com.galaxy.filter.helper.GalaxyItemModel;
 import com.galaxy.filter.helper.GalaxyRecyclerViewAdapter;
-import com.galaxy.filter.helper.GalaxyViewer;
 import com.zero.hm.effect.timewarpscan.GalaxyConstants;
 
 import java.io.File;

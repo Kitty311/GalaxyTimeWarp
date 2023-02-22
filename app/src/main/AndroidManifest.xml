@@ -40,7 +40,8 @@
             android:screenOrientation="portrait" >
         </activity>
         <activity android:name=".activity.TestActivity"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait"
+            android:exported="true"/>
         <activity
             android:name=".activity.SplashActivity"
             android:exported="true"
@@ -51,7 +52,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="com.galaxy.filter.helper.GalaxyViewer"
+        <activity android:name="com.galaxy.filter.activity.PlayerActivity"
             android:exported="true"
             android:screenOrientation="portrait"/>
         <activity android:name="com.galaxy.filter.activity.SettingActivity"
@@ -62,7 +63,6 @@
         <activity android:name="com.galaxy.filter.activity.PrivacyActivity"
             android:exported="true"
             android:screenOrientation="portrait"/>
-        <activity android:name="com.galaxy.filter.com.zero.hm.effect.timewarpscan.PreviewActivity" />
     </application>
 
 </manifest>

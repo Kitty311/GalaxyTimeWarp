@@ -14,6 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.galaxy.filter.R;
+import com.galaxy.filter.activity.PlayerActivity;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -64,7 +65,7 @@ public class GalaxyRecyclerViewAdapter extends RecyclerView.Adapter<GalaxyRecycl
                 holder.itemView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        Intent intent = new Intent(context, GalaxyViewer.class);
+                        Intent intent = new Intent(context, PlayerActivity.class);
                         intent.putExtra("image_viewer", itemModel.isImage);
                         intent.putExtra("path_uri", itemModel.uriPath);
                         context.startActivity(intent);
